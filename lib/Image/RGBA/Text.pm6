@@ -83,17 +83,45 @@ method parse(RGBA:U: $src) {
                 my $value = $img.mappings{$_} // $_;
                 given $value.chars {
                     when 1 {
-                        my \iv = :16($value) // do {
-                            $img = Nil;
-                            return;
-                        }
-
+                        my \iv = :16($value) // return $img = Nil;
                         my \dark = !(iv +& 8);
 
                         $bytes[$n++] = 0xFF * ?(iv +& 1) +> dark;
                         $bytes[$n++] = 0xFF * ?(iv +& 2) +> dark;
                         $bytes[$n++] = 0xFF * ?(iv +& 4) +> dark;
                         $bytes[$n++] = 0xFF * !(iv == 8);
+                    }
+
+                    when 2 {
+                        my \iv = :16($value) // return $img = Nil;
+                        $bytes[$n++] = iv;
+                        $bytes[$n++] = iv;
+                        $bytes[$n++] = iv;
+                        $bytes[$n++] = 0xFF;
+                    }
+
+                    when 3 {
+                        $bytes[$n++] = :16($_) // return $img = Nil
+                            for $value.comb;
+
+                        $bytes[$n++] = 0xFF;
+                    }
+
+                    when 4 {
+                        $bytes[$n++] = 0x11 * (:16($_) // return $img = Nil)
+                            for $value.comb;
+                    }
+
+                    when 6 {
+                        $bytes[$n++] = (:16($_) // return $img = Nil)
+                            for $value.comb(2);
+
+                        $bytes[$n++] = 0xFF;
+                    }
+
+                    when 8 {
+                        $bytes[$n++] = (:16($_) // return $img = Nil)
+                            for $value.comb(2);
                     }
 
                     default { !!! }
