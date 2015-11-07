@@ -6,8 +6,8 @@ has Buf  $.bytes;
 has uint $.width;
 has uint $.height;
 has Str  $.info;
+has Int  $.default-scale is rw = 1;
 
-has @.annotations;
 has @.comments;
 has %.mappings;
 
@@ -25,7 +25,7 @@ method parse(RGBA:U: $src) {
         token TOP {
             [   <.header>
             |   <.map>
-            |   <.note>
+            |   <.scale>
             |   <.pixels>? \h* <.comment>?
             ]
         }
@@ -34,8 +34,8 @@ method parse(RGBA:U: $src) {
             '=rgba' \h+ (\d+) \h+ (\d+) [ \h+ (.*) ]?
         }
 
-        token note {
-            '=note' <?{ defined $img }> \h+ (\d+) \h+ (\d+) [ \h+ (.*) ]?
+        token scale {
+            '=scale' <?{ defined $img }> \h+ (\d+)
         }
 
         token map {
@@ -47,7 +47,7 @@ method parse(RGBA:U: $src) {
         }
 
         token pixels {
-            <?{ defined $img }> [ \h+ (<-[\h#]>+) ]+
+            <![=#]> <?{ defined $img }> \h* (<-[\h#]>+)+ %% \h+
         }
     }
 
@@ -68,8 +68,9 @@ method parse(RGBA:U: $src) {
             $img.mappings{~<<$0} = ~<<$1;
         }
 
-        method note($/) {
-            $img.annotations.push((+$0.Str, +$1.Str) => $2.?Str);
+        method scale($/) {
+            my $scale = +$0.Str;
+            $img.default-scale = $scale if $scale > 1;
         }
 
         method comment($/) {
@@ -141,9 +142,9 @@ method parse(RGBA:U: $src) {
     }
 }
 
-method strip(Bool :$info, Bool :$annotations, Bool :$comments, Bool :$mappings) {
+method strip(Bool :$info, Bool :$scale, Bool :$comments, Bool :$mappings) {
     $!info = Nil unless $info === False;
-    @!annotations = () unless $annotations === False;
+    $!default-scale = 1 unless $scale === False;
     @!comments = () unless $comments === False;
     %!mappings = () unless $mappings === False;
     self;
@@ -155,11 +156,12 @@ method clone {
         width => %_<width> // $!width,
         height => %_<height> // $!height,
         info => %_<info> // $!info,
-        annotations => %_<annotations> // @!annotations.clone,
+        scale => %_<default-scale> // $!default-scale,
         comments => %_<comments> // @!comments.clone,
         mappings => %_<mappings> // %!mappings.clone;
 }
 
+multi method scale { self.scale($!default-scale) }
 multi method scale(Int $f where 1) { self.clone }
 
 multi method scale(Int $f where 2..*) {
@@ -189,7 +191,6 @@ multi method scale(Int $f where 2..*) {
     my &scale-notes = { (.key[0] * $f, .key[1] * $f) => .value }
     self.clone:
         :$bytes :width($!width * $f), :height($!height * $f),
-        :annotations(@!annotations.map(&scale-notes)),
         :comments(@!comments.map(&scale-notes));
 }
 
@@ -217,15 +218,6 @@ multi method DUMP($fh, Bool :$meta!) {
             info   = $!info
             __END__
 
-        @!annotations ?? qq:to/__END__/ !! '',
-
-            [annotations]
-            {
-                join "\n", @!annotations.map:
-                    { "{ .key[0] },{ .key[1] },{ .value } " };
-            }
-            __END__
-
         @!comments ?? qq:to/__END__/ !! '';
 
             [comments]
@@ -238,7 +230,7 @@ multi method DUMP($fh, Bool :$meta!) {
 
 multi method DUMP($fh, Int :$bit = 32) {
     $fh.print: "=rgba $!width $!height $!info\n";
-    $fh.print: "=note { .key[0] } { .key[1] } { .value }\n" for @!annotations;
+    $fh.print: "=scale $!default-scale\n" if $!default-scale > 1;
     self.DUMP($fh, $bit);
 }
 
