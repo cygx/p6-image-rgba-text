@@ -1,0 +1,16 @@
+=rgba 5 8 J
+=map . f
+=note 1 1 upper left corner
+
+A tiny image of the capital letter J
+
+    . . . . .
+    . 0 0 0 .
+    . . . 0 .
+    . . . 0 . # <-- look, a comment
+    . . . 0 .
+    . . . 0 .
+    . 0 0 . .
+    . . . . .
+
+THE END
