@@ -280,12 +280,3 @@ multi method DUMP($fh, 8) {
 
 
 multi method DUMP($fh, 4) { ... }
-
-my $bit = 32;
-sub dump-argfiles($bit) { .dump(:$bit) for RGBA.parse($*ARGFILES) }
-sub image-rgba-text-dump32 is export { dump-argfiles 32 }
-sub image-rgba-text-dump24 is export { dump-argfiles 24 }
-sub image-rgba-text-dump16 is export { dump-argfiles 16 }
-sub image-rgba-text-dump12 is export { dump-argfiles 12 }
-sub image-rgba-text-dump8  is export { dump-argfiles  8 }
-sub image-rgba-text-dump4  is export { dump-argfiles  4 }
