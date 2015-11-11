@@ -1,3 +1,6 @@
+# Copyright 2015 cygx <cygx@cpan.org>
+# Distributed under the Boost Software License, Version 1.0
+
 unit class RGBAText is export;
 
 has blob8 $.bytes;
