@@ -250,6 +250,7 @@ multi method scale(Int $f where 2..*) {
     my &scale-notes = { (.key[0] * $f, .key[1] * $f) => .value }
     self.clone:
         :$bytes, :width($!width * $f), :height($!height * $f),
+        :default-scale(1),
         :comments(@!comments.map(&scale-notes));
 }
 
