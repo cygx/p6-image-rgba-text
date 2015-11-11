@@ -11,6 +11,9 @@ use Image::PNG::Inflated;
 
 my $data := RGBAText.decode('examples/glider.txt'.IO);
 spurt 'glider.png', to-png |$data.unbox;
+
+spurt "{ .info }.png", to-png |.scale.unbox
+    for RGBAText.decode('examples/FEEP.txt'.IO, :all);
 ```
 
 
