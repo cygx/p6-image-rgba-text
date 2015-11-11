@@ -1,5 +1,5 @@
 =rgba 32 32 camelia
-=map % 0 | 7 ` 8 ] A ' B . C @ D - F
+=map % 0 | 7 ] A ' B . C @ D - F ` FFF0
 
 # Camelia, the spokesbug for Perl 6
 
