@@ -1,22 +1,44 @@
-unit class Image::RGBA::Text;
+unit class RGBAText is export;
 
-my constant RGBA = Image::RGBA::Text;
-
-has Buf  $.bytes;
-has uint $.width;
-has uint $.height;
-has Str  $.info;
-has Int  $.default-scale is rw = 1;
+has blob8 $.bytes;
+has uint  $.width;
+has uint  $.height;
+has Str   $.info;
+has Int   $.default-scale is rw = 1;
 
 has @.comments;
 has %.mappings;
+has %.revmap = <
+    000000FF 0
+    7F0000FF 1
+    007F00FF 2
+    7F7F00FF 3
+    00007FFF 4
+    7F007FFF 5
+    007F7FFF 6
+    7F7F7FFF 7
+    00000000 8
+    FF0000FF 9
+    00FF00FF A
+    FFFF00FF B
+    0000FFFF C
+    FF00FFFF D
+    00FFFFFF E
+    FFFFFFFF F
+>;
 
 sub set-elems(\obj, \elems) {
     use nqp;
     nqp::setelems(obj, elems);
 }
 
-method parse(RGBA:U: $src) {
+method unbox { $!bytes, $!width, $!height }
+
+method box(RGBAText:U: blob8 $bytes, UInt $width, UInt $height) {
+    self.bless(:$bytes, :$width, :$height);
+}
+
+method decode(RGBAText:U: $src, Bool :$all) {
     my ($img, $bytes);
     my $N = -1;
     my $n = 0;
@@ -57,15 +79,46 @@ method parse(RGBA:U: $src) {
             my $height = +$1;
             my $info = $2 ?? ~$2 !! '';
 
-            $bytes := Buf.new;
+            $bytes := buf8.new;
             $N = $width * $height * 4;
 
             $bytes.&set-elems($N);
-            $img = RGBA.new(:$width, :$height, :$info, :$bytes);
+            $img = RGBAText.new(:$width, :$height, :$info, :$bytes);
+        }
+
+        sub expand($key, $value) {
+            my &convert1 = { (:16($_) // return Empty).base(16) x 2 }
+            my &convert2 = { sprintf '%02X', (:16($_) // return Empty) };
+
+            given $value.chars {
+                when 1 {
+                    my \iv = :16($value) // return Empty;
+                    my \dark = !(iv +& 8);
+                    sprintf(
+                        '%02X%02X%02X%02X',
+                        0xFF * ?(iv +& 1) +> dark,
+                        0xFF * ?(iv +& 2) +> dark,
+                        0xFF * ?(iv +& 4) +> dark,
+                        0xFF * !(iv == 8)
+                    ) => $key;
+                }
+
+                when 2 { convert2($value) x 3 ~ 'FF' => $key; }
+                when 3 { $value.comb.map(&convert1).join ~ 'FF' => $key }
+                when 4 { $value.comb.map(&convert1).join => $key }
+                when 6 { $value.comb.map(&convert2).join ~ 'FF' => $key }
+                when 8 { $value.comb.map(&convert2).join => $key }
+
+                default { Empty }
+            }
         }
 
         method map($/) {
-            $img.mappings{~<<$0} = ~<<$1;
+            my @keys = ~<<$0;
+            my @values = ~<<$1;
+            $img.mappings{@keys} = @values;
+            $img.revmap{.key} = .value
+                for (flat @keys Z @values).map: &expand;
         }
 
         method scale($/) {
@@ -102,7 +155,7 @@ method parse(RGBA:U: $src) {
                     }
 
                     when 3 {
-                        $bytes[$n++] = :16($_) // return $img = Nil
+                        $bytes[$n++] = 0x11 * (:16($_) // return $img = Nil)
                             for $value.comb;
 
                         $bytes[$n++] = 0xFF;
@@ -125,13 +178,13 @@ method parse(RGBA:U: $src) {
                             for $value.comb(2);
                     }
 
-                    default { !!! }
+                    default { return $img = Nil }
                 }
             }
         }
     }
 
-    gather for $src.lines {
+    my $ll := gather for $src.lines {
         Line.parse($_, :$actions);
         if $n == $N {
             take $img;
@@ -140,18 +193,17 @@ method parse(RGBA:U: $src) {
             $n = 0;
         }
     }
-}
 
-method strip(Bool :$info, Bool :$scale, Bool :$comments, Bool :$mappings) {
-    $!info = Nil unless $info === False;
-    $!default-scale = 1 unless $scale === False;
-    @!comments = () unless $comments === False;
-    %!mappings = () unless $mappings === False;
-    self;
+    if $all { $ll }
+    else {
+        my $first := $ll.iterator.pull-one;
+        $src.?close;
+        $first;
+    }
 }
 
 method clone {
-    RGBA.new:
+    RGBAText.new:
         bytes => %_<bytes> // $!bytes.clone,
         width => %_<width> // $!width,
         height => %_<height> // $!height,
@@ -159,13 +211,13 @@ method clone {
         scale => %_<default-scale> // $!default-scale,
         comments => %_<comments> // @!comments.clone,
         mappings => %_<mappings> // %!mappings.clone;
+        revmap => %_<revmap> // %!revmap.clone;
 }
 
 multi method scale { self.scale($!default-scale) }
 multi method scale(Int $f where 1) { self.clone }
-
 multi method scale(Int $f where 2..*) {
-    my $bytes := Buf.new;
+    my $bytes := buf8.new;
     $bytes.&set-elems($!bytes.elems * $f * $f);
 
     my int $w = $!width;
@@ -198,110 +250,41 @@ multi method scale(Int $f where 2..*) {
         :comments(@!comments.map(&scale-notes));
 }
 
-multi method dump($file, Bool :$png!) {
-    require Image::PNG::Portable;
-    my $img := ::('Image::PNG::Portable').new(:$!width, :$!height);
-
+method encode(Int $bit) {
     my int $i = 0;
-    while $i < $!bytes.elems {
-        my int $pos = $i div 4;
-        $img.set(
-            $pos mod $!width,
-            $pos div $!width,
-            $!bytes[$i++],
-            $!bytes[$i++],
-            $!bytes[$i++]
-        );
+    my int $elems = $!bytes.elems;
 
-        ++$i; # skip alpha
-    }
-
-    $img.write($file);
+    join '',
+        "=rgba $!width $!height $!info\n",
+        $!default-scale > 1 ?? "=scale $!default-scale\n" !! '',
+        do gather while $i < $elems {
+            take self.PIXEL($bit, $i), $i %% ($!width * 4) ?? "\n" !! ' ';
+        }
 }
 
-multi method dump($file = '-', Bool :$w, Bool :$a) {
-    my $fh = open $file, |($a ?? :a !! $w ?? :w !! :x) or die;
-    self.DUMP($fh, |%_);
-
-    # do not close stdout!
-    $fh.close
-        unless $fh.path ~~ IO::Special;
-
-    self;
+multi method PIXEL(32, int $i is rw) {
+    sprintf('%02X', $!bytes[$i++]) xx 4;
 }
 
-multi method DUMP($fh, Bool :$raw!) {
-    $fh.write($!bytes);
+multi method PIXEL(24, int $i is rw) {
+    LEAVE ++$i;
+    sprintf('%02X', $!bytes[$i++]) xx 3;
 }
 
-multi method DUMP($fh, Bool :$meta!) {
-    $fh.print:
-        qq:to/__END__/,
-            [meta]
-            width  = $!width
-            height = $!height
-            info   = $!info
-            __END__
-
-        @!comments ?? qq:to/__END__/ !! '';
-
-            [comments]
-            {
-                join "\n", @!comments.map:
-                    { "{ .key[0] },{ .key[1] },{ .value } " };
-            }
-            __END__
+multi method PIXEL(16, int $i is rw) {
+    ($!bytes[$i++] +> 4).base(16) xx 4;
 }
 
-multi method DUMP($fh, Int :$bit = 32) {
-    $fh.print: "=rgba $!width $!height $!info\n";
-    $fh.print: "=scale $!default-scale\n" if $!default-scale > 1;
-    self.DUMP($fh, $bit);
+multi method PIXEL(12, int $i is rw) {
+    LEAVE ++$i;
+    ($!bytes[$i++] +> 4).base(16) xx 3;
 }
 
-multi method DUMP($fh, 32) {
-    my uint $i = 0;
-    while $i < $!bytes.elems {
-        $fh.print: ' ', sprintf('%02X', $!bytes[$i++]) xx 4;
-        $fh.print("\n") if $i %% ($!width * 4);
-    }
+multi method PIXEL(8, int $i is rw) {
+    LEAVE ++$i;
+    sprintf('%02X', ($!bytes[$i++] + $!bytes[$i++] + $!bytes[$i++]) div 3);
 }
 
-multi method DUMP($fh, 24) {
-    my uint $i = 0;
-    while $i < $!bytes.elems {
-        $fh.print: ' ', sprintf('%02X', $!bytes[$i++]) xx 3;
-        ++$i; # skip alpha
-        $fh.print("\n") if $i %% ($!width * 4);
-    }
+multi method PIXEL(4, int $i is rw) {
+    %!revmap{ self.PIXEL(32, $i).join } // '0';
 }
-
-multi method DUMP($fh, 16) {
-    my uint $i = 0;
-    while $i < $!bytes.elems {
-        $fh.print: ' ', ($!bytes[$i++] +> 4).base(16) xx 4;
-        $fh.print("\n") if $i %% ($!width * 4);
-    }
-}
-
-multi method DUMP($fh, 12) {
-    my uint $i = 0;
-    while $i < $!bytes.elems {
-        $fh.print: ' ', ($!bytes[$i++] +> 4).base(16) xx 3;
-        ++$i; # skip alpha
-        $fh.print("\n") if $i %% ($!width * 4);
-    }
-}
-
-multi method DUMP($fh, 8) {
-    my uint $i = 0;
-    while $i < $!bytes.elems {
-        my $value = ($!bytes[$i++] + $!bytes[$i++] + $!bytes[$i++]) div 3;
-        $fh.print: ' ', sprintf('%02X', $value);
-        ++$i; # skip alpha
-        $fh.print("\n") if $i %% ($!width * 4);
-    }
-}
-
-
-multi method DUMP($fh, 4) { ... }
