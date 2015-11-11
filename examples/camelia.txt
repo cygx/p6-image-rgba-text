@@ -2,6 +2,7 @@
 =map % 0 | 7 ] A ' B . C @ D - F ` FFF0
 
 # Camelia, the spokesbug for Perl 6
+# https://raw.githubusercontent.com/perl6/mu/master/misc/camelia.txt
 
 ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` `
 ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` `
