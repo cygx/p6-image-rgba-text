@@ -194,7 +194,28 @@ multi method scale(Int $f where 2..*) {
         :comments(@!comments.map(&scale-notes));
 }
 
-method dump($file = '-', Bool :$w, Bool :$a) {
+multi method dump($file, Bool :$png!) {
+    require Image::PNG::Portable;
+    my $img := ::('Image::PNG::Portable').new(:$!width, :$!height);
+
+    my uint $i = 0;
+    while $i < $!bytes.elems {
+        my uint $pos = $i div 4;
+        $img.set(
+            $pos mod $!width,
+            $pos div $!width,
+            $!bytes[$i++],
+            $!bytes[$i++],
+            $!bytes[$i++]
+        );
+
+        ++$i; # skip alpha
+    }
+
+    $img.write($file);
+}
+
+multi method dump($file = '-', Bool :$w, Bool :$a) {
     my $fh = open $file, |($a ?? :a !! $w ?? :w !! :x) or die;
     self.DUMP($fh, |%_);
 
