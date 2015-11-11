@@ -1,4 +1,4 @@
-# Image::RGBA::Text
+# Image::RGBA::Text [![build status][TRAVISIMG]][TRAVIS]
 
 Reads RGBA image data of depth 8 from text files
 
@@ -29,7 +29,8 @@ Copyright (C) 2015 by <cygx@cpan.org>
 
 Distributed under the [Boost Software License, Version 1.0][LICENSE]
 
-
+[TRAVIS]:       https://travis-ci.org/cygx/p6-image-rgba-text
+[TRAVISIMG]:    https://travis-ci.org/cygx/p6-image-rgba-text.svg?branch=master
 [SOURCE]:       https://github.com/cygx/p6-image-rgba-text
 [ISSUES]:       https://github.com/cygx/p6-image-rgba-text/issues
 [LICENSE]:      http://www.boost.org/LICENSE_1_0.txt
