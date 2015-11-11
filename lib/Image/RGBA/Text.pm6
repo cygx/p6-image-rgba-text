@@ -171,18 +171,22 @@ multi method scale(Int $f where 2..*) {
     my int $w = $!width;
     my int $h = $!height;
     my int $fi = $f;
+    my uint $elems = $!bytes.elems;
 
+    my int $in = 0;
     loop (my int $y = 0; $y < $h; ++$y) {
         loop (my int $x = 0; $x < $w; ++$x) {
+            my uint8 $b0 = $!bytes[$in++];
+            my uint8 $b1 = $!bytes[$in++];
+            my uint8 $b2 = $!bytes[$in++];
+            my uint8 $b3 = $!bytes[$in++];
             loop (my int $dy = 0; $dy < $fi; ++$dy) {
-                my int $yy = $y * $fi + $dy;
+                my int $out = ((($y * $fi + $dy) * $w + $x) * $fi) * 4;
                 loop (my int $dx = 0; $dx < $fi; ++$dx) {
-                    my int $in = ($y * $w + $x) * 4;
-                    my int $out = (($yy * $w + $x) * $fi + $dx) * 4;
-                    $bytes[$out++] = $!bytes[$in++];
-                    $bytes[$out++] = $!bytes[$in++];
-                    $bytes[$out++] = $!bytes[$in++];
-                    $bytes[$out++] = $!bytes[$in++];
+                    $bytes[$out++] = $b0;
+                    $bytes[$out++] = $b1;
+                    $bytes[$out++] = $b2;
+                    $bytes[$out++] = $b3;
                 }
             }
         }
@@ -190,7 +194,7 @@ multi method scale(Int $f where 2..*) {
 
     my &scale-notes = { (.key[0] * $f, .key[1] * $f) => .value }
     self.clone:
-        :$bytes :width($!width * $f), :height($!height * $f),
+        :$bytes, :width($!width * $f), :height($!height * $f),
         :comments(@!comments.map(&scale-notes));
 }
 
@@ -198,9 +202,9 @@ multi method dump($file, Bool :$png!) {
     require Image::PNG::Portable;
     my $img := ::('Image::PNG::Portable').new(:$!width, :$!height);
 
-    my uint $i = 0;
+    my int $i = 0;
     while $i < $!bytes.elems {
-        my uint $pos = $i div 4;
+        my int $pos = $i div 4;
         $img.set(
             $pos mod $!width,
             $pos div $!width,
