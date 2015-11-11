@@ -206,15 +206,15 @@ method decode(RGBAText:U: $src, Bool :$all) {
 }
 
 method clone {
-    RGBAText.new:
+    RGBAText.new(
         bytes => %_<bytes> // $!bytes.clone,
         width => %_<width> // $!width,
         height => %_<height> // $!height,
         info => %_<info> // $!info,
         scale => %_<default-scale> // $!default-scale,
         comments => %_<comments> // @!comments.clone,
-        mappings => %_<mappings> // %!mappings.clone;
-        revmap => %_<revmap> // %!revmap.clone;
+        mappings => %_<mappings> // %!mappings.clone,
+        revmap => %_<revmap> // %!revmap.clone);
 }
 
 multi method scale { self.scale($!default-scale) }
@@ -248,10 +248,10 @@ multi method scale(Int $f where 2..*) {
     }
 
     my &scale-notes = { (.key[0] * $f, .key[1] * $f) => .value }
-    self.clone:
+    self.clone(
         :$bytes, :width($!width * $f), :height($!height * $f),
         :default-scale(1),
-        :comments(@!comments.map(&scale-notes));
+        :comments(@!comments.map(&scale-notes)));
 }
 
 method encode(Int $bit) {
