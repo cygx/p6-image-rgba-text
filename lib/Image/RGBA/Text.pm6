@@ -54,11 +54,20 @@ Any line that doesn't start with a C<=> character will be interpreted as pixel
 data. Every line of pixel data contains one or more space-separated "names" for
 colors that will be put into the resulting image.
 
+Any entry in the line of pixel data can be any format from the
+section L<Colors> or anything that was declared with a C<=map> directive. The
+declared mappings have precedence over the regular formats, so K<8> will mean
+a black transparent pixel unless there is a mapping set up, for example like
+K<=map 8 ff0000ff>.
+
 The lines don't have to be contain as many entries as the image is wide, but
 supplying less than a whole line's worth will not fill up the rest of the
 line in the image with pixels. Instead, all pixel data is interpreted the same
 way as if they were in one long line: The first C<N> entries will be used for
 the first line, the next C<N> entries for the second line, and so on.
+
+Lines of pixel data may end in a comment as explained in the
+section L<Comments>.
 
 =head3 Colors
 
