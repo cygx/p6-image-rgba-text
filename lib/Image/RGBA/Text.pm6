@@ -30,11 +30,6 @@ has %.revmap = <
     FFFFFFFF F
 >;
 
-sub set-elems(\obj, \elems) {
-    use nqp;
-    nqp::setelems(obj, elems);
-}
-
 method unbox { $!bytes, $!width, $!height }
 
 method box(RGBAText:U: blob8 $bytes, UInt $width, UInt $height) {
@@ -82,10 +77,9 @@ method decode(RGBAText:U: $src, Bool :$all) {
             my $height = +$1;
             my $info = $2 ?? ~$2 !! '';
 
-            $bytes := buf8.new;
             $N = $width * $height * 4;
+            $bytes := buf8.allocate($N);
 
-            $bytes.&set-elems($N);
             $img = RGBAText.new(:$width, :$height, :$info, :$bytes);
         }
 
@@ -220,8 +214,7 @@ method clone {
 multi method scale { self.scale($!default-scale) }
 multi method scale(Int $f where 1) { self.clone }
 multi method scale(Int $f where 2..*) {
-    my $bytes := buf8.new;
-    $bytes.&set-elems($!bytes.elems * $f * $f);
+    my $bytes := buf8.allocate($!bytes.elems * $f * $f);
 
     my int $w = $!width;
     my int $h = $!height;
