@@ -1,6 +1,135 @@
 # Copyright 2015 cygx <cygx@cpan.org>
 # Distributed under the Boost Software License, Version 1.0
 
+=begin pod
+
+=head1 Image::RGBA::Text format
+
+C<Image::RGBA::Text> allows you to create images with 32 bits per pixel color
+depth with Red, Green, Blue, and Alpha channels.
+
+An input document can contain one or multiple images. Calling C<RGBAText.decode>
+with the C<:all> named parameter will return all images as a list, otherwise
+only the first image will be returned.
+
+Input documents are simply a sequence of lines (determined by what the C<lines>
+method of the source that is passed to the C<decode> function returns) that are
+either directives or pixel data.
+
+=head2 Directives
+
+=head3 C<=rgba>
+
+The C<=rgba> directive starts a new image. The directive itself is followed by
+two numbers (digits conforming to C<\d> in regex language, and anything that is
+supported by Perl 6's C<Int> method on C<Str>) and a free text that will be
+stored in the C<info> attribute of the image object. The two numbers specify
+the width and height of the image respectively. That is, the first number
+specifies how many pixels are in each line of the resulting image and the
+second number specifies how many lines will be expected.
+
+=head3 C<=map>
+
+The C<=map> directive sets up "names" for colors that can be used in the pixel
+data portion of the image. It accepts a list of twos where the first entry is
+the name that should be available in the pixel data portion and the second
+entry is a color value as explained in the section L<Colors>.
+
+A map directive only influences pixel data following in the input file, and
+mappings are reset whenever a C<=rgba> directive is encountered.
+
+Multiple map directives in a row are equivalent to a single map directive
+containing the first directive's mappings followed by the second map
+directive's mappings etc.
+
+=head3 C<=scale>
+
+The C<=scale> directive is followed by a single number that specifies the
+default scaling factor that will be used by the image if C<.scale> is called
+on it with no argument.
+
+=head2 Pixel Data
+
+Any line that doesn't start with a C<=> character will be interpreted as pixel
+data. Every line of pixel data contains one or more space-separated "names" for
+colors that will be put into the resulting image.
+
+The lines don't have to be contain as many entries as the image is wide, but
+supplying less than a whole line's worth will not fill up the rest of the
+line in the image with pixels. Instead, all pixel data is interpreted the same
+way as if they were in one long line: The first C<N> entries will be used for
+the first line, the next C<N> entries for the second line, and so on.
+
+=head3 Colors
+
+C<Image::RGBA::Text> understands six different ways to specify colors. They
+are distinguished by the number of characters in each piece.
+
+=head4 A single hexadecimal digit
+
+C<Image::RGBA::Text> comes with a default palette for single hexadecimal digits:
+
+    #000000FF 0
+    #7F0000FF 1
+    #007F00FF 2
+    #7F7F00FF 3
+    #00007FFF 4
+    #7F007FFF 5
+    #007F7FFF 6
+    #7F7F7FFF 7
+    #00000000 8
+    #FF0000FF 9
+    #00FF00FF A
+    #FFFF00FF B
+    #0000FFFF C
+    #FF00FFFF D
+    #00FFFFFF E
+    #FFFFFFFF F
+
+In words, numbers 0 through 7 are black and dark colors, all opaque. Number 8
+is a transparent black pixel. Numbers 9 through F are bright colors followed
+by white.
+
+=head4 Double hexadecimal digits
+
+Double hexadecimal digits, i.e. 00 through FF, will result in a greyscale of
+opaque pixels. 00 is black, FF is white, the values in between just have the
+given hexadecimal number for the R, G, B channels and FF for the alpha channel.
+
+=head4 Three hexadecimal digits
+
+Three hexadecimal digits will result in opaque pixels where the individual
+hexadecimal digits are doubled and stored as the R, G, and B value
+respectively. For example, the value C<47e> would result in the RGBA color
+value C<#4477eeFF>.
+
+=head4 Four hexadecimal digits
+
+This works the same way as three hexadecimal digits, but the alpha channel
+takes its value from the fourth digit rather than being fixed at FF.
+
+=head4 Six hexadecimal digits
+
+Six hexadecimal digits work exactly like you would expect from HTML, CSS,
+or graphics software in general: The first two digits are for the red
+channel, the next two for the green channel, and the last two for the blue
+channel. The alpha channel is always FF.
+
+=head4 Eight hexadecimal digits
+
+This works the same way as six hexadecimal digits, but the last two digits
+are used for the alpha channel.
+
+=head3 Comments
+
+Any line that doesn't start with a C<=> character can have a C<#> sign that
+indicates the start of a comment. Comments can be followed by any text and
+will be stored in the image object's C<comments> attribute as a list of pairs
+with the key being the X and Y position where the comment was started and the
+value being the text.
+
+=end pod
+
 unit class RGBAText is export;
 
 has blob8 $.bytes;
