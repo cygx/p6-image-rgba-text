@@ -8,10 +8,10 @@ language: perl6
 perl6:
   - latest
 install:
-  - rakudobrew build-panda
+  - rakudobrew build-zef
   - gcc -o pngcheck pngcheck.c
-  - panda install Image::PNG::Inflated
+  - zef install Image::PNG::Inflated
 script:
-  - panda install .
+  - zef install .
   - perl6 FEEP.p6
   - ./pngcheck FEEP-basic.png  FEEP-grayscale.png  FEEP-rgb.png
