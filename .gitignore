@@ -1,3 +1,4 @@
 *.rgba
 *.png
 *.exe
+.precomp
