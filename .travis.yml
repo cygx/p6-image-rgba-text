@@ -15,3 +15,4 @@ script:
   - zef install .
   - perl6 FEEP.p6
   - ./pngcheck FEEP-basic.png  FEEP-grayscale.png  FEEP-rgb.png
+  - prove -eperl6 t
