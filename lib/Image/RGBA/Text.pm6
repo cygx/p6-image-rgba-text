@@ -148,6 +148,7 @@ has Str   $.info;
 has Int   $.default-scale is rw = 1;
 
 has @.comments;
+has %.meta;
 has %.mappings;
 has %.revmap = <
     000000FF 0
@@ -181,11 +182,11 @@ method decode(RGBAText:U: $src, Bool :$all) {
 
     my grammar Line {
         token TOP {
-            [   <.header>
+            |   <.header>
             |   <.map>
             |   <.scale>
+            |   <.meta>
             |   <.pixels>? \h* <.comment>?
-            ]
         }
 
         token header {
@@ -194,6 +195,10 @@ method decode(RGBAText:U: $src, Bool :$all) {
 
         token scale {
             '=scale' <?{ defined $img }> \h+ (\d+)
+        }
+
+        token meta {
+            '=meta' <?{ defined $img }> \h+ (\w+) [ \h+ (.*) ]?
         }
 
         token map {
@@ -265,6 +270,12 @@ method decode(RGBAText:U: $src, Bool :$all) {
             my $i = $n div 4;
             $img.comments.push(
                 ($i mod $img.width, $i div $img.width) => ~$0);
+        }
+
+        method meta($/) {
+            my $key = ~$0;
+            my $value = $1 ?? ~$1 !! '';
+            $img.meta{$key} = $value;
         }
 
         method pixels($/) {
@@ -345,6 +356,7 @@ method clone {
         info => %_<info> // $!info,
         scale => %_<default-scale> // $!default-scale,
         comments => %_<comments> // @!comments.clone,
+        meta => %_<meta> // %!meta.clone,
         mappings => %_<mappings> // %!mappings.clone,
         revmap => %_<revmap> // %!revmap.clone);
 }
